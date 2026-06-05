@@ -60,5 +60,8 @@
 
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Trailer Manager needs permission to save trailer photos to your library</string>
+
+	<key>GMSApiKey</key>
+	<string>$(MAPS_API_KEY)</string>
 </dict>
 </plist>

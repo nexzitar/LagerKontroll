@@ -348,9 +348,13 @@ Edit `lib/core/config/app_config.dart` for settings like:
 
 ### Accessing Google Maps API Key
 
-The Google Maps API key is hardcoded in:
-- Android: `android/app/src/main/AndroidManifest.xml:46`
-- Value: `YOUR_GOOGLE_MAPS_API_KEY`
+The Google Maps API key is **not** committed. It's supplied via git-ignored files:
+- Android: `MAPS_API_KEY` in `trailer_manager/.env`, read by Gradle and injected into
+  `AndroidManifest.xml` as `${MAPS_API_KEY}`.
+- iOS: `MAPS_API_KEY` in `ios/Flutter/Secrets.xcconfig`, fed into `Info.plist` (`GMSApiKey`)
+  and read in `AppDelegate.swift`.
+
+See `GOOGLE_MAPS_SETUP.md`. Copy `.env.example` / `Secrets.example.xcconfig` to create them.
 
 ## State Management with Riverpod
 

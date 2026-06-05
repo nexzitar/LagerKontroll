@@ -21,6 +21,9 @@
 *.keystore
 key.properties
 
+# iOS secrets (xcconfig holding the Maps API key); the *.example template is tracked
+**/Secrets.xcconfig
+
 # Logs / temp
 *.log
 *.tmp

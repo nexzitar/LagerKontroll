@@ -1,492 +1,150 @@
-# Trailer Management App - Flutter
+# Trailer Manager (LagerKontroll)
 
-A professional trailer management application built with Flutter, featuring camera capture, GPS tracking, and real-time updates.
+A mobile app and backend for keeping a live database of the trailers in a logistics
+depot. A trailer is logged with a single camera capture: the app reads the license plate
+from the photo with on-device OCR, records the GPS position, and uses geofencing to detect
+which terminal the trailer is standing in. It replaces a paper-based logging process that
+was always out of date.
 
-## Features
+This repository is a monorepo:
 
-### 1. Capture View
-- Camera integration for license plate and contents photos
-- Manual license plate entry
-- Terminal selection (B1/B3)
-- GPS location capture
-- Empty trailer checkbox
-- Real-time image preview
+- **`trailer_manager/`** — the Flutter app (Android, with iOS build support).
+- **`trailer_manager/backend/`** — the Node.js + Express + PostgreSQL REST API.
 
-### 2. Browse View
-- List all trailers with pagination
-- Sort by date, name, or status
-- Filter by terminal, status, date range
-- Search functionality
-- Pull-to-refresh
+## The Problem
 
-### 3. Detail View
-- Photo gallery viewer
-- Interactive map with location
-- Timestamp information
-- History of last 5-10 entries
-- Mark trailer as empty
-- Update location
+Tracking which trailers are in the depot, where they are, and what state they're in was
+done on paper and whiteboards: stale the moment it was written, not searchable, with no
+location data and no history of who changed what. Finding a trailer meant walking the
+terminal and reading plates by eye.
 
-### 4. Settings View
-- Configurable history count
-- Cache settings
-- Location accuracy settings
-- Image quality settings
-- Theme preferences
+## What It Does
 
-### 5. Over-the-Air Updates
-- Shorebird integration for instant updates
-- No app store submission required for small fixes
-- Automatic background updates
+- **One-capture entry** — take one photo and the record is created with image, license
+  plate, GPS coordinates, detected terminal, and status.
+- **License plate OCR** — `google_mlkit_text_recognition` reads the plate on-device and
+  auto-fills the trailer number. Recognizes Norwegian, Swedish (classic `ABC 123` and new
+  `ABC 12D`), and Dutch plate formats.
+- **GPS + terminal geofencing** — every entry stores exact coordinates; a ray-casting
+  point-in-polygon test maps the position to a terminal (`B1`–`B5`, `ØT`) automatically.
+- **Interactive map** — all trailers on a Google Maps satellite view with status-colored
+  markers, filterable by terminal.
+- **Status & history** — statuses `Empty`, `Loaded`, and `In Ramp` (with ramp number),
+  plus a timestamped, append-only history with user attribution.
+- **Roles & onboarding** — `Guest` / `User` / `Admin` access, an admin panel, and
+  SMS-based onboarding for new users.
+- **Over-the-air updates** — Shorebird code push ships fixes without an app-store release.
 
-## Architecture
+## Tech Stack
 
-This project follows **Clean Architecture** principles with a **feature-first** folder structure.
+### App (`trailer_manager/`)
 
-### Key Principles
-- **Separation of Concerns**: Clear boundaries between layers
-- **Testability**: Easy to unit test business logic
-- **Maintainability**: Scalable and organized code structure
-- **Type Safety**: Compile-time error checking with Riverpod
-- **No Magic Numbers**: All configuration centralized
+- **Flutter / Dart**, organized with **Clean Architecture** and a feature-first layout
+  (`features/auth`, `browse`, `capture`, `detail`, `map`, `module_tracking`, `settings`).
+- **State management:** `flutter_riverpod` (providers / `StateNotifier`).
+- **Networking:** `dio` with a JWT auth header, a token-expiry interceptor, and retry logic.
+- **Local storage:** `hive` / `hive_flutter` and `shared_preferences`.
+- **Camera & OCR:** `camera`, `image_picker`, `image`, `google_mlkit_text_recognition`.
+- **Location & maps:** `geolocator`, `geocoding`, `google_maps_flutter`, `permission_handler`.
+- **Error handling:** `dartz` (`Either`-based failures).
+- **Updates:** Shorebird code push.
 
-### Architecture Layers
+### Backend (`trailer_manager/backend/`)
 
-```
-┌─────────────────────────────────────────┐
-│         Presentation Layer              │
-│   (UI, Widgets, State Management)       │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         Application Layer               │
-│   (Use Cases, Business Logic)           │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         Domain Layer                    │
-│   (Entities, Repository Interfaces)     │
-└─────────────────┬───────────────────────┘
-                  │
-┌─────────────────▼───────────────────────┐
-│         Data Layer                      │
-│   (Repository Impl, API, Local Storage) │
-└─────────────────────────────────────────┘
-```
+- **Node.js + Express** REST API, versioned under `/api/v1`.
+- **PostgreSQL** via `pg`, with append-only history tracking.
+- **Image pipeline:** `multer` uploads + `sharp` compression/thumbnails.
+- **Auth & security:** `bcrypt`, `jsonwebtoken`, `helmet`, `express-rate-limit`, `cors`.
+- **Config:** `dotenv`.
 
-## Technology Stack
-
-### State Management
-- **Riverpod 2.x** with code generation
-  - Compile-time safety
-  - No BuildContext required
-  - Excellent testability
-
-### Navigation
-- **go_router** for declarative routing
-- Deep linking support
-- Type-safe navigation
-
-### Networking
-- **Dio** for HTTP requests
-- **Retrofit** for type-safe API clients
-- Interceptors for auth and logging
-
-### Local Storage
-- **Hive** for fast NoSQL storage
-- **SharedPreferences** for simple settings
-
-### Camera & Images
-- **camera** package for camera access
-- **image_picker** for gallery selection
-- **image** for manipulation
-
-### Location & Maps
-- **geolocator** for GPS tracking
-- **google_maps_flutter** for maps
-- **geocoding** for address conversion
-
-### Error Handling
-- **dartz** for functional error handling
-- Either type for explicit error handling
-- Custom Failure and Exception classes
-
-### Updates
-- **Shorebird** for over-the-air updates
-
-## Project Structure
+## Repository Layout
 
 ```
-lib/
-├── core/                    # Shared functionality
-│   ├── config/             # Configuration & constants
-│   ├── theme/              # App theme
-│   ├── utils/              # Utilities
-│   ├── errors/             # Error handling
-│   └── network/            # Network setup
-│
-├── features/               # Feature modules
-│   ├── capture/           # Trailer capture
-│   ├── browse/            # Trailer list
-│   ├── detail/            # Trailer detail
-│   └── settings/          # App settings
-│
-└── shared/                # Shared UI components
-    ├── widgets/
-    └── dialogs/
-```
-
-Each feature follows the same structure:
-```
-feature/
-├── data/
-│   ├── models/
-│   ├── repositories/
-│   └── datasources/
-├── domain/
-│   ├── entities/
-│   ├── repositories/
-│   └── usecases/
-└── presentation/
-    ├── providers/
-    ├── screens/
-    └── widgets/
+LagerKontroll/
+├── README.md
+└── trailer_manager/
+    ├── lib/                 # Flutter app source (Clean Architecture, feature-first)
+    │   ├── core/            # config, network, services, theme, utils
+    │   ├── features/        # auth, browse, capture, detail, map, module_tracking, settings
+    │   └── shared/          # shared models and utilities
+    ├── android/ · ios/      # native platform projects
+    ├── backend/             # Node.js + Express + PostgreSQL API
+    │   ├── src/             # routes, controllers, middleware, services, config
+    │   └── migrations/      # SQL migrations + schema
+    ├── CLAUDE.md            # in-depth developer/architecture guide
+    └── GOOGLE_MAPS_SETUP.md # how to obtain and configure the Maps API key
 ```
 
 ## Getting Started
 
 ### Prerequisites
-- Flutter SDK 3.16.0+
-- Dart SDK 3.2.0+
-- iOS development: Xcode 14.0+
-- Android development: Android Studio or Android SDK
 
-### Installation
+- Flutter SDK (Dart SDK `^3.10.1`)
+- Node.js 18+ and PostgreSQL 13+ (for the backend)
+- A Google Maps API key (see [`trailer_manager/GOOGLE_MAPS_SETUP.md`](trailer_manager/GOOGLE_MAPS_SETUP.md))
 
-1. **Clone the repository**
+### 1. Backend
+
 ```bash
-git clone <repository-url>
-cd LagerKontroll
+cd trailer_manager/backend
+npm install
+cp .env.example .env        # then fill in DB credentials and JWT secret
+# create the database and run trailer_manager/backend/database_schema.sql + migrations/
+npm run dev                 # or: npm start
 ```
 
-2. **Install dependencies**
+### 2. App
+
 ```bash
+cd trailer_manager
 flutter pub get
-```
-
-3. **Generate code**
-```bash
-flutter pub run build_runner build --delete-conflicting-outputs
-```
-
-4. **Configure API keys**
-
-Create `.env` file:
-```
-API_BASE_URL=https://api.example.com
-GOOGLE_MAPS_API_KEY_ANDROID=your_android_key
-GOOGLE_MAPS_API_KEY_IOS=your_ios_key
-```
-
-5. **Setup platform-specific configurations**
-
-#### Android: `android/app/src/main/AndroidManifest.xml`
-```xml
-<uses-permission android:name="android.permission.CAMERA" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-<uses-permission android:name="android.permission.INTERNET" />
-
-<meta-data
-    android:name="com.google.android.geo.API_KEY"
-    android:value="YOUR_ANDROID_API_KEY"/>
-```
-
-#### iOS: `ios/Runner/Info.plist`
-```xml
-<key>NSCameraUsageDescription</key>
-<string>We need camera access to capture trailer photos</string>
-
-<key>NSLocationWhenInUseUsageDescription</key>
-<string>We need location access to track trailer locations</string>
-```
-
-6. **Run the app**
-```bash
+cp .env.example .env        # then add your Google Maps API key (see Configuration)
 flutter run
 ```
 
-### Run with environments
-```bash
-# Development
-flutter run --dart-define=ENV=development
+The app's API base URL is configured in `lib/core/config/environment.dart`
+(`EnvironmentConfig.current`).
 
-# Production
-flutter run --dart-define=ENV=production --release
+## Configuration & Secrets
+
+No API keys or secrets are committed to the repository. They are provided locally through
+`.env` files (and an iOS xcconfig), all of which are git-ignored. Each has a committed
+`*.example` template.
+
+| Secret | Where it's used | Provide it in |
+|--------|-----------------|---------------|
+| Google Maps API key | Android manifest + iOS `AppDelegate` | `trailer_manager/.env` (`MAPS_API_KEY`) for Android; `trailer_manager/ios/Flutter/Secrets.xcconfig` for iOS |
+| DB credentials, JWT secret, etc. | Backend | `trailer_manager/backend/.env` |
+
+**App (Maps key):**
+
+```bash
+cd trailer_manager
+cp .env.example .env
+# set MAPS_API_KEY=your_google_maps_api_key   (Android reads this at build time)
+
+cp ios/Flutter/Secrets.example.xcconfig ios/Flutter/Secrets.xcconfig
+# set MAPS_API_KEY=your_google_maps_api_key   (iOS reads this at build time)
 ```
 
-## Development
+On Android, the Gradle build reads `MAPS_API_KEY` from `trailer_manager/.env` and injects it
+into the manifest via a manifest placeholder. On iOS, `Secrets.xcconfig` feeds the key into
+`Info.plist` (`GMSApiKey`), which `AppDelegate.swift` passes to `GMSServices`.
 
-### Code Generation
-When you modify models, providers, or add new generated code:
+**Backend:** copy `trailer_manager/backend/.env.example` to `.env` and fill in the values;
+the server loads them via `dotenv`.
+
+## Building & Releasing
+
 ```bash
-flutter pub run build_runner watch --delete-conflicting-outputs
-```
+# Android release
+cd trailer_manager
+flutter build apk --release        # or: flutter build appbundle --release
 
-### Testing
-```bash
-# Run all tests
-flutter test
-
-# Run with coverage
-flutter test --coverage
-
-# Run specific test
-flutter test test/unit/features/capture/domain/usecases/capture_trailer_test.dart
-```
-
-### Linting
-```bash
-# Analyze code
-flutter analyze
-
-# Format code
-dart format lib/ test/
-
-# Auto-fix issues
-dart fix --apply
-```
-
-## Building
-
-### Android
-```bash
-# APK
-flutter build apk --release
-
-# App Bundle (Play Store)
-flutter build appbundle --release
-```
-
-### iOS
-```bash
-flutter build ios --release
-```
-
-### With Shorebird (OTA Updates)
-```bash
-# Install Shorebird CLI
-curl --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh -sSf | bash
-
-# Initialize
-shorebird init
-
-# Create release
-shorebird release android
-shorebird release ios
-
-# Create patch (OTA update)
+# Over-the-air patch (after a Shorebird release)
 shorebird patch android
 ```
 
-## Documentation
-
-Detailed documentation is available in the following files:
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete architecture overview, patterns, and decisions
-- **[PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)** - Detailed folder structure and file organization
-- **[IMPLEMENTATION_EXAMPLES.md](IMPLEMENTATION_EXAMPLES.md)** - Code examples for all major components
-- **[QUICK_START_GUIDE.md](QUICK_START_GUIDE.md)** - Step-by-step setup and development guide
-
-## Key Concepts
-
-### State Management with Riverpod
-
-```dart
-// Define provider with code generation
-@riverpod
-class TrailerList extends _$TrailerList {
-  @override
-  Future<List<Trailer>> build() async {
-    return await _fetchTrailers();
-  }
-
-  Future<void> refresh() async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchTrailers());
-  }
-}
-
-// Use in widget
-class TrailerListScreen extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final trailers = ref.watch(trailerListProvider);
-
-    return trailers.when(
-      data: (list) => ListView.builder(...),
-      loading: () => LoadingIndicator(),
-      error: (error, stack) => ErrorView(error: error),
-    );
-  }
-}
-```
-
-### Error Handling
-
-```dart
-// Repository returns Either<Failure, Success>
-Future<Either<Failure, Trailer>> getTrailer(String id) async {
-  try {
-    final trailer = await api.getTrailer(id);
-    return Right(trailer);
-  } on ServerException {
-    return Left(ServerFailure());
-  } catch (e) {
-    return Left(UnexpectedFailure(e.toString()));
-  }
-}
-
-// Use case handles business logic
-Future<Either<Failure, Trailer>> call(String id) async {
-  if (id.isEmpty) {
-    return Left(ValidationFailure('ID cannot be empty'));
-  }
-  return await repository.getTrailer(id);
-}
-```
-
-### Configuration Management
-
-```dart
-// All configuration in one place - NO MAGIC NUMBERS
-class AppConfig {
-  static const String apiBaseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api.example.com',
-  );
-
-  static const int imageQuality = 85;
-  static const Duration apiTimeout = Duration(seconds: 30);
-  static const List<String> availableTerminals = ['B1', 'B3'];
-}
-
-// Use throughout the app
-final timeout = AppConfig.apiTimeout;
-```
-
-## Best Practices
-
-1. **Follow Clean Architecture** - Keep layers separated
-2. **Write Tests** - Aim for >80% coverage
-3. **Use Code Generation** - Reduce boilerplate
-4. **No Magic Numbers** - Use configuration
-5. **Handle Errors Explicitly** - Use Either type
-6. **Document Public APIs** - Use documentation comments
-7. **Keep Files Small** - Under 300 lines
-8. **One Class Per File** - Easy to navigate
-
-## Contributing
-
-1. Create a feature branch
-2. Implement your feature following the architecture
-3. Write tests for your changes
-4. Ensure all tests pass: `flutter test`
-5. Format code: `dart format lib/ test/`
-6. Run analysis: `flutter analyze`
-7. Submit a pull request
-
-### Commit Message Format
-```
-<type>(<scope>): <subject>
-
-<body>
-
-<footer>
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
-
-Example:
-```
-feat(capture): add camera functionality
-
-- Implemented camera preview
-- Added photo capture
-- Integrated with provider
-
-Closes #123
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Code generation not working**
-   ```bash
-   flutter clean
-   flutter pub get
-   flutter pub run build_runner build --delete-conflicting-outputs
-   ```
-
-2. **Permission issues**
-   - Check AndroidManifest.xml and Info.plist
-   - Request permissions at runtime with permission_handler
-
-3. **Maps not showing**
-   - Verify API keys are correct
-   - Check platform-specific configuration
-   - Enable Maps SDK in Google Cloud Console
-
-4. **Build failures**
-   ```bash
-   flutter clean
-   cd ios && pod deintegrate && pod install && cd ..
-   flutter pub get
-   ```
-
-## Performance
-
-- **Image optimization**: Images compressed to 85% quality, max 1920x1080
-- **Lazy loading**: Lists use ListView.builder for efficient rendering
-- **Caching**: Network images cached, API responses cached for 24h
-- **Offline support**: Local storage with background sync
-
-## Security
-
-- **No hardcoded secrets**: Use environment variables
-- **HTTPS only**: All API calls use HTTPS
-- **Input validation**: All user inputs validated
-- **Permission checks**: Runtime permission requests
-
-## License
-
-[Your License Here]
-
-## Support
-
-For questions or issues, please:
-1. Check the documentation files
-2. Search existing issues
-3. Create a new issue with details
-
-## Roadmap
-
-- [ ] Offline mode with background sync
-- [ ] Push notifications
-- [ ] Barcode scanning for license plates
-- [ ] Multi-language support
-- [ ] Dark mode
-- [ ] Export functionality (PDF, CSV)
-- [ ] Analytics dashboard
-
-## Credits
-
-Built with:
-- [Flutter](https://flutter.dev)
-- [Riverpod](https://riverpod.dev)
-- [Shorebird](https://shorebird.dev)
-
----
-
-**Version**: 1.0.0
-**Last Updated**: 2025-12-10
+See [`trailer_manager/CLAUDE.md`](trailer_manager/CLAUDE.md) for a deeper architecture and
+API reference, and [`trailer_manager/backend/README.md`](trailer_manager/backend/README.md)
+for backend setup and endpoints.
