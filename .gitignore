@@ -1,0 +1,53 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editors / local agent state
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.keystore
+key.properties
+
+# Logs / temp
+*.log
+*.tmp
+
+# Flutter / Dart
+**/.dart_tool/
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.pub/
+**/build/
+**/coverage/
+**/doc/api/
+**/ios/Flutter/.last_build_id
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+app.*.symbols
+app.*.map.json
+
+# Native/mobile generated dependencies
+**/ios/Pods/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+
+# Backend generated/runtime files
+**/node_modules/
+**/uploads/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
